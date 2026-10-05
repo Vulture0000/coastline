@@ -69,11 +69,38 @@ Per-storm held-out R²: Vardah **0.970** / Gaja 0.748 / Nivar 0.877 / Michaung 0
 `composite_erosion_idx` after feature engineering, so it extrapolates to unseen storms
 while tree models saturate at their training range.
 
-**Figures in `outputs/`:** `model_mae_comparison.png` (grouped CV-vs-pooled MAE bars with
-±SD), `mean_shap_bar.png` (mean |SHAP| ranking), `shap_summary_<model>.png` (beeswarm),
-`shap_dependence_<model>_<feature>.png` (top-3 dependence plots with interaction
-colouring), plus `model_metrics.csv/.json`, `loso_per_storm.csv`,
-`feature_importance.csv`, `predictions_loso.csv`, `shap_plots.json`, `dataset_qc.json`.
+### 4.1 Which model works better — MAE comparison
+
+![Model MAE comparison](outputs/model_mae_comparison.png)
+
+### 4.2 Global feature importance — mean |SHAP| (best model)
+
+![Mean absolute SHAP values](outputs/mean_shap_bar.png)
+
+| Rank | Feature | Mean absolute SHAP value (m of retreat) |
+|---|---|---|
+| 1 | composite_erosion_idx | 2.520 |
+| 2 | terrain_exposure | 0.707 |
+| 3 | terrain_elev_m | 0.635 |
+| 4 | mangrove_protection | 0.496 |
+| 5 | mangrove_width_m | 0.386 |
+
+### 4.3 SHAP beeswarm summary — best model (LinearRegression)
+
+![SHAP summary beeswarm](outputs/shap_summary_LinearRegression.png)
+
+### 4.4 SHAP dependence plots — top-3 drivers (best model)
+
+![composite_erosion_idx dependence](outputs/shap_dependence_LinearRegression_composite_erosion_idx.png)
+
+![terrain_exposure dependence](outputs/shap_dependence_LinearRegression_terrain_exposure.png)
+
+![terrain_elev_m dependence](outputs/shap_dependence_LinearRegression_terrain_elev_m.png)
+
+Equivalent figures for RandomForest and XGBoost (`shap_summary_<model>.png`,
+`shap_dependence_<model>_<feature>.png`) plus raw numbers (`model_metrics.csv/.json`,
+`loso_per_storm.csv`, `feature_importance.csv`, `predictions_loso.csv`,
+`shap_plots.json`, `dataset_qc.json`) are in `outputs/`.
 
 ## 5. Project Structure
 
