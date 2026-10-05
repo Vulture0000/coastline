@@ -1,0 +1,26 @@
+{
+  "LinearRegression": {
+    "summary": "shap_summary_LinearRegression.png",
+    "dependence": {
+      "composite_erosion_idx": "shap_dependence_LinearRegression_composite_erosion_idx.png",
+      "terrain_exposure": "shap_dependence_LinearRegression_terrain_exposure.png",
+      "terrain_elev_m": "shap_dependence_LinearRegression_terrain_elev_m.png"
+    }
+  },
+  "RandomForest": {
+    "summary": "shap_summary_RandomForest.png",
+    "dependence": {
+      "composite_erosion_idx": "shap_dependence_RandomForest_composite_erosion_idx.png",
+      "wave_period_s": "shap_dependence_RandomForest_wave_period_s.png",
+      "dune_width_m": "shap_dependence_RandomForest_dune_width_m.png"
+    }
+  },
+  "XGBoost": {
+    "summary": "shap_summary_XGBoost.png",
+    "dependence": {
+      "composite_erosion_idx": "shap_dependence_XGBoost_composite_erosion_idx.png",
+      "wave_period_s": "shap_dependence_XGBoost_wave_period_s.png",
+      "storm_wind_ms": "shap_dependence_XGBoost_storm_wind_ms.png"
+    }
+  }
+}

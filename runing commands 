@@ -1,0 +1,8 @@
+# 1. Build the clean master dataset (SQLite + CSV + QC)
+.venv/bin/python -m coastml.dataset
+
+# 2. Train models + metrics + SHAP figures
+.venv/bin/python -m coastml.models
+
+# 3. Launch the dashboard UI
+.venv/bin/python -m streamlit run coastml/app.py

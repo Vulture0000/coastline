@@ -232,3 +232,6 @@ __marimo__/
 # They live outside the repo at ~/.config/earthengine/credentials
 credentials
 *credentials*.json
+
+# local mangrove rasters (files >100 MB cannot be pushed to GitHub)
+Mangrovee/

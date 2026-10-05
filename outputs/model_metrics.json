@@ -1,0 +1,61 @@
+{
+  "best_model": "LinearRegression",
+  "shap_plots": {
+    "LinearRegression": {
+      "summary": "shap_summary_LinearRegression.png",
+      "dependence": {
+        "composite_erosion_idx": "shap_dependence_LinearRegression_composite_erosion_idx.png",
+        "terrain_exposure": "shap_dependence_LinearRegression_terrain_exposure.png",
+        "terrain_elev_m": "shap_dependence_LinearRegression_terrain_elev_m.png"
+      }
+    },
+    "RandomForest": {
+      "summary": "shap_summary_RandomForest.png",
+      "dependence": {
+        "composite_erosion_idx": "shap_dependence_RandomForest_composite_erosion_idx.png",
+        "wave_period_s": "shap_dependence_RandomForest_wave_period_s.png",
+        "dune_width_m": "shap_dependence_RandomForest_dune_width_m.png"
+      }
+    },
+    "XGBoost": {
+      "summary": "shap_summary_XGBoost.png",
+      "dependence": {
+        "composite_erosion_idx": "shap_dependence_XGBoost_composite_erosion_idx.png",
+        "wave_period_s": "shap_dependence_XGBoost_wave_period_s.png",
+        "storm_wind_ms": "shap_dependence_XGBoost_storm_wind_ms.png"
+      }
+    }
+  },
+  "metrics": {
+    "LinearRegression": {
+      "loso_rmse": 1.0066966824524075,
+      "loso_mae": 0.7954575392158693,
+      "loso_r2": 0.9353603325239433,
+      "train_time_s": 0.004778208999596245,
+      "mean_fold_train_s": 0.0011407814999984112,
+      "mean_fold_predict_s": 3.785424996749498e-05,
+      "single_prediction_ms": 0.029167000320740044,
+      "is_best": true
+    },
+    "RandomForest": {
+      "loso_rmse": 2.0867570753754263,
+      "loso_mae": 1.0312241717772965,
+      "loso_r2": 0.7222553972963566,
+      "train_time_s": 0.7140300419996493,
+      "mean_fold_train_s": 0.13993738549993395,
+      "mean_fold_predict_s": 0.025911010749950947,
+      "single_prediction_ms": 13.514291999854322,
+      "is_best": false
+    },
+    "XGBoost": {
+      "loso_rmse": 2.16065308884618,
+      "loso_mae": 1.1343631982092244,
+      "loso_r2": 0.7022361819813157,
+      "train_time_s": 2.617667208000057,
+      "mean_fold_train_s": 0.5060459167498266,
+      "mean_fold_predict_s": 0.0005393855001329939,
+      "single_prediction_ms": 0.36424999962036964,
+      "is_best": false
+    }
+  }
+}

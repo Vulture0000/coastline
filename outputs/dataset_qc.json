@@ -1,0 +1,25 @@
+{
+  "rows": 480,
+  "columns": 22,
+  "sections": 120,
+  "storms": [
+    "Gaja",
+    "Michaung",
+    "Nivar",
+    "Vardah"
+  ],
+  "nulls": 0,
+  "duplicate_keys": 0,
+  "checks_passed": true,
+  "issues": [],
+  "target_stats": {
+    "count": 480.0,
+    "mean": 2.51,
+    "std": 3.96,
+    "min": -2.0,
+    "25%": 0.3,
+    "50%": 1.4,
+    "75%": 3.23,
+    "max": 32.1
+  }
+}
