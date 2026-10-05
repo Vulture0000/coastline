@@ -1,0 +1,7 @@
+Metric,Shore_Class,N,Mean_m,Median_m,SD_m,Min_m,Max_m,P90_abs_m
+Change_base_post_m,mangrove,17,5.29,0.0,21.83,-20.0,80.0,20.0
+Change_base_post_m,non_mangrove,64,-3.75,0.0,21.57,-100.0,50.0,30.0
+Change_post_recover_m,mangrove,8,-13.75,0.0,32.49,-80.0,10.0,80.0
+Change_post_recover_m,non_mangrove,16,-35.0,-30.0,58.08,-170.0,50.0,90.0
+Noise_recover_q1_m,mangrove,7,-10.0,-10.0,35.59,-80.0,40.0,80.0
+Noise_recover_q1_m,non_mangrove,3,-60.0,-80.0,81.85,-130.0,30.0,130.0

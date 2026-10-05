@@ -79,7 +79,14 @@ def main():
         return
     base_poly = C.unary_union([C.to_utm(C.shape(f["geometry"])) for f in feats])
     line = C.principal_line(base_poly)
-    stations = C.build_sections(line, base_poly, keepaway=C.utm_aoi_box())
+    # build_sections needs the water polygon, not the land one: passing land
+    # points every normal inland and reverses the sign of every change.
+    sea = C.sea_geom(cols[REF_DATE])
+    if sea is None:
+        print("!! no water body above {:.0f} m2 on reference date {}".format(
+            C.MIN_SEA_AREA, REF_DATE))
+        return
+    stations = C.build_sections(line, sea, keepaway=C.utm_aoi_box())
     if len(stations) > C.MAX_SECTIONS:
         stride = len(stations) / float(C.MAX_SECTIONS)
         stations = [stations[int(i * stride)] for i in range(C.MAX_SECTIONS)]

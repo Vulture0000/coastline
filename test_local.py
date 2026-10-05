@@ -36,6 +36,41 @@ def crossings(stations, wx):
     return out
 
 
+def principal_of(poly):
+    return C.principal_line(poly)
+
+
+def assert_water_poly_at_call_sites():
+    """Every build_sections call must pass a water polygon, by name.
+
+    build_sections reads its second argument as "which side is water". Handing
+    it land is silent and inverts every normal, so the failure is a sign flip
+    in the results rather than an exception. Checking the call sites is the
+    only guard that catches it, since the synthetic suite is happy either way.
+    """
+    import ast
+    import os
+
+    offenders = []
+    for fname in ("coastline.py", "prestorm.py", "chennai.py"):
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), fname)
+        with open(path) as fh:
+            tree = ast.parse(fh.read(), fname)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            name = getattr(fn, "attr", getattr(fn, "id", ""))
+            if name != "build_sections" or len(node.args) < 2:
+                continue
+            arg = ast.dump(node.args[1])
+            if "water_poly" not in arg and "sea" not in arg:
+                offenders.append("{}:{} {}".format(fname, node.lineno, name))
+    print("build_sections call sites passing a water polygon: {}".format(
+        "all" if not offenders else offenders))
+    assert not offenders, "build_sections called with a non-water polygon at " + ", ".join(offenders)
+
+
 def main():
     pre, post = fake_water(WX_PRE), fake_water(WX_POST)
     keepaway = box(AOI_X0, AOI_Y0, AOI_X1, AOI_Y1)
@@ -64,6 +99,21 @@ def main():
     assert all(d is not None for d in pre_d + post_d), "every transect must cross"
     assert abs(pre_d[0]) < 1e-9, "baseline itself must be sampled at d=0, got {}".format(pre_d[0])
     print("transect offsets along baseline:", pre_d[0], "->", pre_d[-1], "m")
+
+    # Regression guard. build_sections takes a WATER polygon; every real-data
+    # caller used to hand it the land polygon instead, which is not a crash --
+    # it silently returns normals pointing inland and reverses the sign of
+    # every shoreline change. demo_run.py builds its polygons as water, so it
+    # never exercised the land path and the suite stayed green.
+    land_poly = box(AOI_X0, AOI_Y0, AOI_X1, AOI_Y1).difference(pre)
+    flipped = C.build_sections(principal_of(pre), land_poly, keepaway=None)
+    bad = [n for p, n in flipped if pre.contains(Point(p[0] - n[0] * 60, p[1] - n[1] * 60))]
+    print("land polygon as water_poly -> {} of {} normals point inland".format(
+        len(bad), len(flipped)))
+    for p, n in stations:
+        assert pre.contains(Point(p[0] + n[0] * 60, p[1] + n[1] * 60)), "sea_poly must agree with water_poly"
+
+    assert_water_poly_at_call_sites()
 
     retreats = sorted({round(b - a, 2) for a, b in zip(pre_d, post_d)})
     print("retreat values:", retreats)

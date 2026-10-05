@@ -68,6 +68,7 @@ STEP = 10.0
 AOI_MARGIN = 300.0
 SIMPLIFY = 30.0
 MIN_AREA = 3.6e5  # 36 ha at 30 m; drops cloud-gap blobs, keeps real coast
+MIN_SEA_AREA = 1e8  # 100 km2 at 30 m; a real sea, not a reservoir or quarry pit
 MAX_SECTIONS = 200
 API_TIMEOUT = 1800
 BATCH = 1000
@@ -100,9 +101,19 @@ def to_utm(geom):
     return shp_transform(_to_utm, geom)
 
 
-@lru_cache(maxsize=1)
-def aoi():
-    return ee.Geometry.Rectangle(AOI_LL)
+_AOI_CACHE = {}
+
+
+def aoi(rect=None):
+    """EE geometry for the AOI. rect defaults to the module AOI_LL.
+
+    Cached on the coordinate tuple, so per-site callers (see chennai.py) get
+    their own AOI without the default call being disturbed.
+    """
+    key = tuple(rect) if rect else tuple(AOI_LL)
+    if key not in _AOI_CACHE:
+        _AOI_CACHE[key] = ee.Geometry.Rectangle(list(key))
+    return _AOI_CACHE[key]
 
 
 def scl_mask(image):
@@ -126,17 +137,46 @@ def ndwi(image):
     return image.normalizedDifference(["B3", "B8"]).rename("WATER")
 
 
-def collection(date):
+def collection(date, rect=None):
     return (
         ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
-        .filterBounds(aoi())
+        .filterBounds(aoi(rect))
         .filterDate(date, ee.Date(date).advance(1, "day"))
         .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", CLOUD_MAX))
         .map(prep)
     )
 
 
-def report(date, col):
+def usable_tiles(date, rect=None):
+    """MGRS tiles that actually cover the AOI on this date.
+
+    A tile listed in a collection's MGRS_TILE property can still miss most of
+    the AOI. Chennai sits almost entirely inside 44PMV, and several dates
+    return a 44PLV scene that only clips the western edge, so a date that has
+    "a scene" is not the same as a date that covers the coast. Sections are
+    only trustworthy if the covering tile is present.
+    """
+    # The RAW collection, not collection(): prep() copies only time_start and
+    # SPACECRAFT_NAME, so MGRS_TILE is gone by the time it could be read here.
+    col = (
+        ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+        .filterBounds(aoi(rect))
+        .filterDate(date, ee.Date(date).advance(1, "day"))
+        .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", CLOUD_MAX))
+    )
+    ids = col.aggregate_array("system:index").getInfo() or []
+    if not ids:
+        return {}
+    box = aoi(rect).area().getInfo()
+    cover = {}
+    for sid, tile in zip(ids, col.aggregate_array("MGRS_TILE").getInfo()):
+        g = ee.Image("COPERNICUS/S2_SR_HARMONIZED/" + sid).geometry()
+        frac = g.intersection(aoi(rect)).area().getInfo() / box
+        cover[tile] = max(cover.get(tile, 0.0), frac)
+    return cover
+
+
+def report(date, col, rect=None):
     n = col.size().getInfo()
     print("\n{} -> {} scene(s), cloud filter < {}%".format(date, n, CLOUD_MAX))
     if not n:
@@ -147,12 +187,12 @@ def report(date, col):
             im.select("B8")
             .mask()
             .unmask(0)
-            .reduceRegion(ee.Reducer.mean(), aoi(), 120)
+            .reduceRegion(ee.Reducer.mean(), aoi(rect), 120)
             .get("B8")
         )
         tide = ee.Algorithms.If(
             im.bandNames().contains(ee.String("TIDE_F")),
-            im.select("TIDE_F").reduceRegion(ee.Reducer.mean(), aoi(), 120).get("TIDE_F"),
+            im.select("TIDE_F").reduceRegion(ee.Reducer.mean(), aoi(rect), 120).get("TIDE_F"),
             ee.Number(-9999),
         )
         return ee.Feature(None, {
@@ -186,7 +226,7 @@ def report(date, col):
         )
 
 
-def land_geom(col):
+def land_geom(col, rect=None):
     """Largest contiguous landmasses as a FeatureCollection dict.
 
     Land is vectorised rather than water: cloud gaps inside the sea turn into
@@ -196,7 +236,7 @@ def land_geom(col):
     land = ndwi(col.mosaic()).lte(NDWI_THRESH).rename("land")
     land = land.mask(land)  # drop water pixels so only value-1 regions vectorise
     fc = land.reduceToVectors(
-        geometry=aoi(),
+        geometry=aoi(rect),
         crs=CRS,
         scale=VECTOR_SCALE,
         geometryType="polygon",
@@ -232,13 +272,49 @@ def water_samples(col, feats, batch=BATCH):
     return out
 
 
+def sea_geom(col, rect=None):
+    """Largest contiguous WATER body as a shapely polygon in CRS.
+
+    Needed wherever the AOI encloses big inland water. build_sections only
+    checks that its seaward probe is not land, so a lake shore satisfies it
+    and the sections end up on the lake instead of the open coast. Requiring
+    the seaward probe to lie inside the single largest water body rejects
+    those, and on a coastal AOI the largest body is the sea.
+
+    Water is vectorised here rather than derived as the AOI minus land,
+    because the AOI box is open on the seaward side and would swallow a
+    margin of sea that does not actually border land.
+    """
+    water = ndwi(col.mosaic()).gt(NDWI_THRESH).rename("water")
+    water = water.mask(water)
+    fc = water.reduceToVectors(
+        geometry=aoi(rect),
+        crs=CRS,
+        scale=VECTOR_SCALE,
+        geometryType="polygon",
+        eightConnected=True,
+        maxPixels=int(1e13),
+        labelProperty="water",
+    )
+    fc = fc.map(lambda f: f.set("area", f.area(10)))
+    feats = ee.FeatureCollection(
+        fc.filter(ee.Filter.gte("area", MIN_SEA_AREA)).sort("area", False).limit(3)
+    ).getInfo().get("features") or []
+    if not feats:
+        return None
+    parts = [to_utm(shape(f["geometry"])) for f in feats]
+    parts.sort(key=lambda g: g.area, reverse=True)
+    return parts[0]
+
+
 def principal_line(poly):
     parts = sorted(getattr(poly, "geoms", [poly]), key=lambda g: g.area, reverse=True)
     return parts[0].boundary
 
 
-def utm_aoi_box():
-    corners = [to_utm(Point(x, y)) for x in (AOI_LL[0], AOI_LL[2]) for y in (AOI_LL[1], AOI_LL[3])]
+def utm_aoi_box(rect=None):
+    r = rect or AOI_LL
+    corners = [to_utm(Point(x, y)) for x in (r[0], r[2]) for y in (r[1], r[3])]
     return box(
         min(c.x for c in corners),
         min(c.y for c in corners),
@@ -247,7 +323,19 @@ def utm_aoi_box():
     )
 
 
-def build_sections(line, water_poly, spacing=SPACING, tangent_window=30.0, keepaway=None, margin=AOI_MARGIN):
+def build_sections(line, water_poly, sea_poly=None, spacing=SPACING, tangent_window=30.0,
+                   keepaway=None, margin=AOI_MARGIN, sea_reach=0.0):
+    """Place transect origins along `line` with normals pointing seaward.
+
+    `water_poly` is the water polygon whose boundary `line` came from. A
+    section survives when the seaward probe is water and the inland probe is
+    not.
+
+    With `sea_poly` set, the seaward ray must additionally stay inside that one
+    water body for `sea_reach` metres. Without it a lake shore is
+    indistinguishable from a coast, since both read as "water offshore" when
+    the AOI encloses inland water.
+    """
     total = line.length
     count = max(int(total // spacing), 1)
     out = []
@@ -269,6 +357,10 @@ def build_sections(line, water_poly, spacing=SPACING, tangent_window=30.0, keepa
         inland = Point(p.x - cand[0] * 90, p.y - cand[1] * 90)
         if not (water_poly.contains(seaward) and not water_poly.contains(inland)):
             continue
+        if sea_poly is not None and sea_reach > 0:
+            if not all(sea_poly.contains(Point(p.x + cand[0] * r, p.y + cand[1] * r))
+                       for r in (90.0, sea_reach / 2.0, sea_reach)):
+                continue
         if keepaway is not None and keepaway.exterior.distance(p) < margin:
             continue
         out.append((np.array([p.x, p.y]), cand))
@@ -321,7 +413,17 @@ def main():
         print("  {}: land polygon area  = {:.1f} km2".format(
             epoch, polys[epoch].area / 1e6))
 
-    stations = build_sections(lines["base"], polys["base"], keepaway=utm_aoi_box())
+    # The section line comes from LAND (a cloud gap in the sea must not invent
+    # a coastline), but build_sections needs the WATER polygon: it asks which
+    # side of a boundary point is water, and handed a land polygon every
+    # normal ends up pointing inland, reversing the sign of every change.
+    sea = sea_geom(cols["base"])
+    if sea is None:
+        print("  !! no water body above {:.0f} m2 on base -- stopping".format(MIN_SEA_AREA))
+        return
+    print("  sea body area      = {:.1f} km2".format(sea.area / 1e6))
+
+    stations = build_sections(lines["base"], sea, keepaway=utm_aoi_box())
     if len(stations) > MAX_SECTIONS:
         stride = len(stations) / float(MAX_SECTIONS)
         stations = [stations[int(i * stride)] for i in range(MAX_SECTIONS)]
