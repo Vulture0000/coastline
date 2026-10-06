@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /Users/vulture/Coastline && .venv/bin/python -c \"\nimport pandas as pd, json\nd=pd.read_csv\\('data/master_dataset.csv'\\); print\\('master', d.shape\\)\nprint\\(d.groupby\\('storm'\\).size\\(\\)\\)\nprint\\(pd.read_csv\\('outputs/model_metrics.csv'\\).to_string\\(\\)\\)\nprint\\(pd.read_csv\\('outputs/loso_per_storm.csv'\\).to_string\\(\\)\\)\nprint\\(json.load\\(open\\('outputs/shap_plots.json'\\)\\)\\)\np=pd.read_csv\\('outputs/predictions_loso.csv'\\); print\\('preds', p.shape, list\\(p.columns\\)\\); print\\(p.head\\(3\\).to_string\\(\\)\\)\n\")"
+    ]
+  }
+}

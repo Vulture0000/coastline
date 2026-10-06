@@ -6,3 +6,8 @@
 
 # 3. Launch the dashboard UI
 .venv/bin/python -m streamlit run coastml/app.py
+
+# 4. Report figures: A.1 dashboard screenshot + A.2 study area + A.3 extraction + A.4 change map
+.venv/bin/python -m coastml.report_figures
+# 5. Report section figures (10 images, one per report section)
+.venv/bin/python -m coastml.section_figures
